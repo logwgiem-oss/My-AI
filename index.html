@@ -66,22 +66,29 @@
             const text = input.value.trim();
             if (!text) return;
 
+            // Display your user message
             chatDiv.innerHTML += `<div class="msg user-msg"><b>You:</b> ${text}</div>`;
             input.value = '';
             chatDiv.scrollTop = chatDiv.scrollHeight;
 
+            // Add thinking placeholder
             chatDiv.innerHTML += `<div id="loading-reply" class="msg ai-msg"><b>AI:</b> Thinking...</div>`;
             chatDiv.scrollTop = chatDiv.scrollHeight;
             
             try {
-                // Pass text directly to your local WebAssembly compiler layer
-                const output = await wllama.createCompletion({
-                    prompt: `<|im_start|>user\n${text}<|im_end|>\n<|im_start|>assistant\n`,
-                    n_predict: 150,
+                // FIXED FOR V3: Passing a plain string directly as required by createCompletion
+                const rawPrompt = `<|im_start|>user\n${text}<|im_end|>\n<|im_start|>assistant\n`;
+                const output = await wllama.createCompletion(rawPrompt, {
+                    n_predict: 150
                 });
 
-                document.getElementById('loading-reply').remove();
-                chatDiv.innerHTML += `<div class="msg ai-msg"><b>AI:</b> ${output.text || output}</div>`;
+                // Safely remove the placeholder and write out the AI text
+                const placeholder = document.getElementById('loading-reply');
+                if (placeholder) placeholder.remove();
+                
+                // Handle response if it returns an object or string
+                const resultText = (typeof output === 'string') ? output : (output.text || "");
+                chatDiv.innerHTML += `<div class="msg ai-msg"><b>AI:</b> ${resultText}</div>`;
             } catch (err) {
                 const placeholder = document.getElementById('loading-reply');
                 if(placeholder) placeholder.innerText = "AI Error: " + err.message;
