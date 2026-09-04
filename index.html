@@ -10,9 +10,7 @@
         #status { color: #aaa; font-style: italic; margin-bottom: 15px; font-size: 13px; text-align: center; background: #222; padding: 8px; border-radius: 5px; }
         .input-container { display: flex; gap: 10px; }
         input { flex: 1; padding: 12px; background: #222; border: 1px solid #444; color: white; border-radius: 6px; font-size: 14px; }
-        input:disabled { opacity: 0.5; cursor: not-allowed; }
         button { padding: 12px 24px; background: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; }
-        button:disabled { background: #444; cursor: not-allowed; }
         .msg { margin-bottom: 10px; }
         .user-msg { color: #64b5f6; }
         .ai-msg { color: #a5d6a7; }
@@ -25,50 +23,48 @@
     <div id="chat"></div>
     
     <div class="input-container">
-        <input type="text" id="userInput" placeholder="Type a message..." disabled>
-        <button id="sendBtn" onclick="sendMessage()" disabled>Send</button>
+        <!-- FIXED: Removed the disabled blocker so the keyboard triggers instantly -->
+        <input type="text" id="userInput" placeholder="Type a message...">
+        <button id="sendBtn">Send</button>
     </div>
 
     <script type="module">
-        // Loads the file you downloaded, renamed, and uploaded locally
         import { Wllama } from "./wllama.js";
 
-        // Your exact Hugging Face GGUF model download link
         const MODEL_URL = "https://huggingface.co/LowgieM/Ai/resolve/main/qwen2.5-coder-1.5b-instruct-q2_k.gguf";
 
         let wllama;
         const statusDiv = document.getElementById('status');
         const chatDiv = document.getElementById('chat');
+        const sendBtn = document.getElementById('sendBtn');
+        const inputField = document.getElementById('userInput');
 
         async function initAI() {
             try {
                 statusDiv.innerText = "Compiling Local WebAssembly Engine Binary...";
                 
-                // Points directly to the local wllama.wasm binary you uploaded
                 wllama = new Wllama({
                     "default": "./wllama.wasm"
                 });
 
-                statusDiv.innerText = "Instantly streaming model into browser cache...";
+                statusDiv.innerText = "Streaming model into browser cache...";
                 await wllama.loadModelFromUrl(MODEL_URL);
 
                 statusDiv.innerText = "✨ AI Ready! Running 100% locally in your browser tab.";
-                document.getElementById('userInput').disabled = false;
-                document.getElementById('sendBtn').disabled = false;
             } catch (err) {
-                statusDiv.innerText = "❌ Error: " + err.message;
+                statusDiv.innerText = "❌ Error during startup: " + err.message;
                 console.error(err);
             }
         }
 
-        window.sendMessage = async function() {
-            const input = document.getElementById('userInput');
-            const text = input.value.trim();
-            if (!text) return;
+        // FIXED: Binding button directly via event listener to bypass structural scoping issues
+        sendBtn.addEventListener('click', async () => {
+            const text = inputField.value.trim();
+            if (!text || !wllama) return;
 
             // Display your user message
             chatDiv.innerHTML += `<div class="msg user-msg"><b>You:</b> ${text}</div>`;
-            input.value = '';
+            inputField.value = '';
             chatDiv.scrollTop = chatDiv.scrollHeight;
 
             // Add thinking placeholder
@@ -76,29 +72,31 @@
             chatDiv.scrollTop = chatDiv.scrollHeight;
             
             try {
-                // FIXED FOR V3: Passing a plain string directly as required by createCompletion
+                // Formatting plain text query schema targeting v3 engine endpoints
                 const rawPrompt = `<|im_start|>user\n${text}<|im_end|>\n<|im_start|>assistant\n`;
                 const output = await wllama.createCompletion(rawPrompt, {
                     n_predict: 150
                 });
 
-                // Safely remove the placeholder and write out the AI text
                 const placeholder = document.getElementById('loading-reply');
                 if (placeholder) placeholder.remove();
                 
-                // Handle response if it returns an object or string
                 const resultText = (typeof output === 'string') ? output : (output.text || "");
                 chatDiv.innerHTML += `<div class="msg ai-msg"><b>AI:</b> ${resultText}</div>`;
             } catch (err) {
                 const placeholder = document.getElementById('loading-reply');
-                if(placeholder) placeholder.innerText = "AI Error: " + err.message;
+                if (placeholder) placeholder.innerText = "AI Error: " + err.message;
             }
             
             chatDiv.scrollTop = chatDiv.scrollHeight;
-        }
+        });
+
+        // Add Enter key listener so pressing enter on mobile keyboard sends it
+        inputField.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendBtn.click();
+        });
 
         initAI();
     </script>
 </body>
 </html>
-
