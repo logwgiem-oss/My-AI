@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Instant GGUF Web AI</title>
+    <style>
+        body { font-family: sans-serif; background: #121212; color: #fff; padding: 20px; max-width: 600px; margin: auto; }
+        #chat { height: 300px; border: 1px solid #333; padding: 10px; overflow-y: auto; background: #1a1a1a; margin-bottom: 10px; border-radius: 5px; }
+        #status { color: #888; font-style: italic; margin-bottom: 10px; }
+        input { width: 80%; padding: 10px; background: #222; border: 1px solid #444; color: white; border-radius: 4px; }
+        button { width: 18%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <h2>My Custom Browser AI</h2>
+    <div id="status">Initializing WebAssembly Engine...</div>
+    <div id="chat"></div>
+    
+    <input type="text" id="userInput" placeholder="Type a message..." disabled>
+    <button id="sendBtn" onclick="sendMessage()" disabled>Send</button>
+
+    <!-- Load the official Browser-GGUF engine (Wllama) via CDN -->
+    <script type="module">
+        import { Wllama } from "https://jsdelivr.net";
+
+        // 1. PASTE YOUR HUGGING FACE GGUF LINK HERE
+        const MODEL_URL = "https://huggingface.co/LowgieM/Ai/resolve/main/qwen2.5-coder-1.5b-instruct-q2_k.gguf";
+
+        let wllama;
+        const statusDiv = document.getElementById('status');
+        const chatDiv = document.getElementById('chat');
+
+        async function initAI() {
+            try {
+                statusDiv.innerText = "Downloading & Compiling Browser AI Engine...";
+                
+                // Pointing to the WASM configuration assets
+                wllama = new Wllama({
+                    "wllama.wasm": "https://jsdelivr.net",
+                });
+
+                statusDiv.innerText = "Instantly loading GGUF model into browser cache...";
+                // This streams the GGUF directly from Hugging Face into the browser tab
+                await wllama.loadModelFromUrl(MODEL_URL);
+
+                statusDiv.innerText = "AI Ready! Running completely offline in your browser.";
+                document.getElementById('userInput').disabled = false;
+                document.getElementById('sendBtn').disabled = false;
+            } catch (err) {
+                statusDiv.innerText = "Error loading model: " + err.message;
+                console.error(err);
+            }
+        }
+
+        window.sendMessage = async function() {
+            const input = document.getElementById('userInput');
+            const text = input.value.trim();
+            if (!text) return;
+
+            chatDiv.innerHTML += `<div><b>You:</b> ${text}</div>`;
+            input.value = '';
+
+            chatDiv.innerHTML += `<div id="loading-reply"><b>AI:</b> Thinking...</div>`;
+            
+            // Generate response from the loaded GGUF model 
+            const output = await wllama.createCompletion(text, {
+                n_predict: 100,
+            });
+
+            document.getElementById('loading-reply').remove();
+            chatDiv.innerHTML += `<div><b>AI:</b> ${output}</div>`;
+            chatDiv.scrollTop = chatDiv.scrollHeight;
+        }
+
+        // Start loading the second the webpage opens
+        initAI();
+    </script>
+</body>
+</html>
