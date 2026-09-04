@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Custom GGUF Web AI</title>
+    <!-- Your direct installation script tag -->
+    <script src="https://cdn.jsdelivr.net/npm/@askcodebase/web-llm@0.2.15/lib/index.min.js"></script>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #121212; color: #fff; padding: 20px; max-width: 600px; margin: auto; }
         #chat { height: 350px; border: 1px solid #333; padding: 15px; overflow-y: auto; background: #1a1a1a; margin-bottom: 10px; border-radius: 8px; font-size: 14px; line-height: 1.5; }
@@ -20,7 +22,7 @@
 <body>
 
     <h2 style="text-align: center; margin-bottom: 5px;">Custom Qwen 2.5 Coder</h2>
-    <div id="status">Loading Custom AI Engine...</div>
+    <div id="status">Loading Custom AI Engine Layer...</div>
     <div id="chat"></div>
     
     <div class="input-container">
@@ -28,12 +30,10 @@
         <button id="sendBtn" disabled>Send</button>
     </div>
 
-    <script type="module">
-        // Loads the browser engine directly from your own repository file
-        import { BrowserAI } from "./ai-engine.js";
-
+    <script>
         // YOUR EXACT CUSTOM HUGGING FACE GGUF FILE LINK
-        const MY_GGUF_URL = "https://huggingface.co/LowgieM/Ai/resolve/main/qwen2.5-coder-1.5b-instruct-q2_k.gguf";
+        const MY_GGUF_URL = "https://huggingface.co/LowgieM/Ai/resolve/main/qwen2.5-coder-1.5b-instruct-q2_k.gguf;
+        const MODEL_ID = "qwen2.5-coder-1.5b-instruct-q2_k";
 
         let engineInstance;
         const statusDiv = document.getElementById('status');
@@ -45,15 +45,27 @@
             try {
                 statusDiv.innerText = "Connecting to your Hugging Face GGUF link...";
                 
-                // Initialize the engine using your specific model URL
-                engineInstance = await BrowserAI.init(MY_GGUF_URL, (progressText) => {
-                    statusDiv.innerText = progressText;
+                // Uses the global webllm object installed via your CDN script tag
+                engineInstance = await window.webllm.CreateMLCEngine(MODEL_ID, {
+                    initProgressCallback: (report) => {
+                        statusDiv.innerText = report.text;
+                    },
+                    appConfig: {
+                        model_list: [
+                            {
+                                model: MY_GGUF_URL,
+                                model_id: MODEL_ID,
+                                // Pulls the matching engine execution instructions for your model type
+                                model_lib: "https://githubusercontent.com"
+                            }
+                        ]
+                    }
                 });
 
-                statusDiv.innerText = "✨ AI Ready! Running your custom GGUF completely in this browser tab.";
+                statusDiv.innerText = "✨ AI Ready! Running your custom GGUF locally in your browser.";
                 sendBtn.disabled = false;
             } catch (err) {
-                statusDiv.innerText = "❌ Error: " + err.message;
+                statusDiv.innerText = "❌ Error during loading: " + err.message;
                 console.error(err);
             }
         }
@@ -72,7 +84,7 @@
             try {
                 const messages = [{ role: "user", content: text }];
                 
-                // Run text generation directly through your custom cached model file
+                // Directly triggers text generation against your streamed GGUF model structure
                 const reply = await engineInstance.chat.completions.create({ messages });
                 const output = reply.choices[0].message.content;
 
