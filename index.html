@@ -11,6 +11,7 @@
         .input-container { display: flex; gap: 10px; }
         input { flex: 1; padding: 12px; background: #222; border: 1px solid #444; color: white; border-radius: 6px; font-size: 14px; }
         button { padding: 12px 24px; background: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; }
+        button:disabled { background: #444; cursor: not-allowed; opacity: 0.6; }
         .msg { margin-bottom: 10px; }
         .user-msg { color: #64b5f6; }
         .ai-msg { color: #a5d6a7; }
@@ -23,9 +24,9 @@
     <div id="chat"></div>
     
     <div class="input-container">
-        <!-- FIXED: Removed the disabled blocker so the keyboard triggers instantly -->
         <input type="text" id="userInput" placeholder="Type a message...">
-        <button id="sendBtn">Send</button>
+        <!-- Button starts as disabled so you can't click it early and crash the code -->
+        <button id="sendBtn" disabled>Send</button>
     </div>
 
     <script type="module">
@@ -34,6 +35,8 @@
         const MODEL_URL = "https://huggingface.co/LowgieM/Ai/resolve/main/qwen2.5-coder-1.5b-instruct-q2_k.gguf";
 
         let wllama;
+        let isEngineReady = false; // Safety lock flag
+        
         const statusDiv = document.getElementById('status');
         const chatDiv = document.getElementById('chat');
         const sendBtn = document.getElementById('sendBtn');
@@ -47,20 +50,27 @@
                     "default": "./wllama.wasm"
                 });
 
-                statusDiv.innerText = "Streaming model into browser cache...";
+                statusDiv.innerText = "Streaming model into browser cache (please wait)...";
+                
+                // Using the exact version 3 URL loader syntax from Wllama spec
                 await wllama.loadModelFromUrl(MODEL_URL);
 
                 statusDiv.innerText = "✨ AI Ready! Running 100% locally in your browser tab.";
+                
+                // Unlock the safety flags
+                isEngineReady = true;
+                sendBtn.disabled = false;
             } catch (err) {
                 statusDiv.innerText = "❌ Error during startup: " + err.message;
                 console.error(err);
             }
         }
 
-        // FIXED: Binding button directly via event listener to bypass structural scoping issues
-        sendBtn.addEventListener('click', async () => {
+        // Action trigger function
+        async function executeMessageSend() {
             const text = inputField.value.trim();
-            if (!text || !wllama) return;
+            // Block execution if the button is clicked before the model completes loading
+            if (!text || !wllama || !isEngineReady) return;
 
             // Display your user message
             chatDiv.innerHTML += `<div class="msg user-msg"><b>You:</b> ${text}</div>`;
@@ -72,7 +82,7 @@
             chatDiv.scrollTop = chatDiv.scrollHeight;
             
             try {
-                // Formatting plain text query schema targeting v3 engine endpoints
+                // Proper completion text schema formatting targeting the backend
                 const rawPrompt = `<|im_start|>user\n${text}<|im_end|>\n<|im_start|>assistant\n`;
                 const output = await wllama.createCompletion(rawPrompt, {
                     n_predict: 150
@@ -89,14 +99,17 @@
             }
             
             chatDiv.scrollTop = chatDiv.scrollHeight;
-        });
+        }
 
-        // Add Enter key listener so pressing enter on mobile keyboard sends it
+        // Direct event listener attachments
+        sendBtn.addEventListener('click', executeMessageSend);
+
         inputField.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendBtn.click();
+            if (e.key === 'Enter') executeMessageSend();
         });
 
         initAI();
     </script>
 </body>
 </html>
+
