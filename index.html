@@ -3,9 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Qwen 2.5 Coder AI</title>
-    <!-- Adds the required isolation header security layer directly to the browser -->
-    <script src="coi-serviceworker.js"></script>
+    <title>My Custom GGUF Web AI</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #121212; color: #fff; padding: 20px; max-width: 600px; margin: auto; }
         #chat { height: 350px; border: 1px solid #333; padding: 15px; overflow-y: auto; background: #1a1a1a; margin-bottom: 10px; border-radius: 8px; font-size: 14px; line-height: 1.5; }
@@ -21,8 +19,8 @@
 </head>
 <body>
 
-    <h2 style="text-align: center; margin-bottom: 5px;">Qwen 2.5 Coder AI</h2>
-    <div id="status">Loading Local Engine...</div>
+    <h2 style="text-align: center; margin-bottom: 5px;">Custom Qwen 2.5 Coder</h2>
+    <div id="status">Loading Custom AI Engine...</div>
     <div id="chat"></div>
     
     <div class="input-container">
@@ -31,13 +29,13 @@
     </div>
 
     <script type="module">
-        import { Wllama } from "./wllama.js";
+        // Loads the browser engine directly from your own repository file
+        import { BrowserAI } from "./ai-engine.js";
 
-        const MODEL_URL = "https://huggingface.co/LowgieM/Ai/resolve/main/qwen2.5-coder-1.5b-instruct-q2_k.gguf";
+        // YOUR EXACT CUSTOM HUGGING FACE GGUF FILE LINK
+        const MY_GGUF_URL = "https://huggingface.co/LowgieM/Ai/resolve/main/qwen2.5-coder-1.5b-instruct-q2_k.gguf";
 
-        let wllama;
-        let isEngineReady = false; 
-        
+        let engineInstance;
         const statusDiv = document.getElementById('status');
         const chatDiv = document.getElementById('chat');
         const sendBtn = document.getElementById('sendBtn');
@@ -45,27 +43,24 @@
 
         async function initAI() {
             try {
-                statusDiv.innerText = "Compiling Local WebAssembly Engine Binary...";
+                statusDiv.innerText = "Connecting to your Hugging Face GGUF link...";
                 
-                wllama = new Wllama({
-                    "default": "./wllama.wasm"
+                // Initialize the engine using your specific model URL
+                engineInstance = await BrowserAI.init(MY_GGUF_URL, (progressText) => {
+                    statusDiv.innerText = progressText;
                 });
 
-                statusDiv.innerText = "Streaming model into browser cache (please wait)...";
-                await wllama.loadModelFromUrl(MODEL_URL);
-
-                statusDiv.innerText = "✨ AI Ready! Running 100% locally in your browser tab.";
-                isEngineReady = true;
+                statusDiv.innerText = "✨ AI Ready! Running your custom GGUF completely in this browser tab.";
                 sendBtn.disabled = false;
             } catch (err) {
-                statusDiv.innerText = "❌ Error during startup: " + err.message;
+                statusDiv.innerText = "❌ Error: " + err.message;
                 console.error(err);
             }
         }
 
         async function executeMessageSend() {
             const text = inputField.value.trim();
-            if (!text || !wllama || !isEngineReady) return;
+            if (!text || !engineInstance) return;
 
             chatDiv.innerHTML += `<div class="msg user-msg"><b>You:</b> ${text}</div>`;
             inputField.value = '';
@@ -75,16 +70,16 @@
             chatDiv.scrollTop = chatDiv.scrollHeight;
             
             try {
-                const rawPrompt = `<|im_start|>user\n${text}<|im_end|>\n<|im_start|>assistant\n`;
-                const output = await wllama.createCompletion(rawPrompt, {
-                    n_predict: 150
-                });
+                const messages = [{ role: "user", content: text }];
+                
+                // Run text generation directly through your custom cached model file
+                const reply = await engineInstance.chat.completions.create({ messages });
+                const output = reply.choices[0].message.content;
 
                 const placeholder = document.getElementById('loading-reply');
                 if (placeholder) placeholder.remove();
                 
-                const resultText = (typeof output === 'string') ? output : (output.text || "");
-                chatDiv.innerHTML += `<div class="msg ai-msg"><b>AI:</b> ${resultText}</div>`;
+                chatDiv.innerHTML += `<div class="msg ai-msg"><b>AI:</b> ${output}</div>`;
             } catch (err) {
                 const placeholder = document.getElementById('loading-reply');
                 if(placeholder) placeholder.innerText = "AI Error: " + err.message;
@@ -94,7 +89,6 @@
         }
 
         sendBtn.addEventListener('click', executeMessageSend);
-
         inputField.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') executeMessageSend();
         });
