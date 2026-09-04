@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Qwen 2.5 Coder AI</title>
+    <!-- Adds the required isolation header security layer directly to the browser -->
+    <script src="coi-serviceworker.js"></script>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #121212; color: #fff; padding: 20px; max-width: 600px; margin: auto; }
         #chat { height: 350px; border: 1px solid #333; padding: 15px; overflow-y: auto; background: #1a1a1a; margin-bottom: 10px; border-radius: 8px; font-size: 14px; line-height: 1.5; }
@@ -25,7 +27,6 @@
     
     <div class="input-container">
         <input type="text" id="userInput" placeholder="Type a message...">
-        <!-- Button starts as disabled so you can't click it early and crash the code -->
         <button id="sendBtn" disabled>Send</button>
     </div>
 
@@ -35,7 +36,7 @@
         const MODEL_URL = "https://huggingface.co/LowgieM/Ai/resolve/main/qwen2.5-coder-1.5b-instruct-q2_k.gguf";
 
         let wllama;
-        let isEngineReady = false; // Safety lock flag
+        let isEngineReady = false; 
         
         const statusDiv = document.getElementById('status');
         const chatDiv = document.getElementById('chat');
@@ -51,13 +52,9 @@
                 });
 
                 statusDiv.innerText = "Streaming model into browser cache (please wait)...";
-                
-                // Using the exact version 3 URL loader syntax from Wllama spec
                 await wllama.loadModelFromUrl(MODEL_URL);
 
                 statusDiv.innerText = "✨ AI Ready! Running 100% locally in your browser tab.";
-                
-                // Unlock the safety flags
                 isEngineReady = true;
                 sendBtn.disabled = false;
             } catch (err) {
@@ -66,23 +63,18 @@
             }
         }
 
-        // Action trigger function
         async function executeMessageSend() {
             const text = inputField.value.trim();
-            // Block execution if the button is clicked before the model completes loading
             if (!text || !wllama || !isEngineReady) return;
 
-            // Display your user message
             chatDiv.innerHTML += `<div class="msg user-msg"><b>You:</b> ${text}</div>`;
             inputField.value = '';
             chatDiv.scrollTop = chatDiv.scrollHeight;
 
-            // Add thinking placeholder
             chatDiv.innerHTML += `<div id="loading-reply" class="msg ai-msg"><b>AI:</b> Thinking...</div>`;
             chatDiv.scrollTop = chatDiv.scrollHeight;
             
             try {
-                // Proper completion text schema formatting targeting the backend
                 const rawPrompt = `<|im_start|>user\n${text}<|im_end|>\n<|im_start|>assistant\n`;
                 const output = await wllama.createCompletion(rawPrompt, {
                     n_predict: 150
@@ -95,13 +87,12 @@
                 chatDiv.innerHTML += `<div class="msg ai-msg"><b>AI:</b> ${resultText}</div>`;
             } catch (err) {
                 const placeholder = document.getElementById('loading-reply');
-                if (placeholder) placeholder.innerText = "AI Error: " + err.message;
+                if(placeholder) placeholder.innerText = "AI Error: " + err.message;
             }
             
             chatDiv.scrollTop = chatDiv.scrollHeight;
         }
 
-        // Direct event listener attachments
         sendBtn.addEventListener('click', executeMessageSend);
 
         inputField.addEventListener('keypress', (e) => {
