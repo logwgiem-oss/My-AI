@@ -12,8 +12,6 @@
         button:disabled { background: #444; cursor: not-allowed; }
         #chat { height: 320px; overflow-y: auto; border: 1px solid #333; padding: 10px; background: #050505; white-space: pre-wrap; margin-top: 10px; }
     </style>
-    <!-- Point script source to the automated engine output path -->
-    <script src="./engine/wllama.js"></script>
 </head>
 <body>
 
@@ -33,7 +31,10 @@
         <button id="sendBtn" disabled>Execute Inference</button>
     </div>
 
-    <script>
+    <!-- FIXED: Changed script type to "module" to correctly catch the ESM exports without variable errors -->
+    <script type="module">
+        import { Wllama } from './engine/wllama.js';
+
         let wllamaInstance = null;
 
         document.getElementById('loadBtn').addEventListener('click', async () => {
@@ -43,7 +44,7 @@
 
             status.innerText = "Initializing local file structure maps...";
             try {
-                // Instantiating with capital 'W' as exposed by the global bundle
+                // Safely initializes using the natively imported constructor module
                 wllamaInstance = new Wllama({
                     "default": "./engine/wllama.wasm"
                 });
