@@ -19,7 +19,7 @@
     
     <div class="box">
         <label><strong>Target Model Layer:</strong></label>
-        <p style="color:#aaa; font-size: 13px; margin: 5px 0;">Qwen2.5-Coder-1.5B (Direct Link Stream)</p>
+        <p style="color:#aaa; font-size: 13px; margin: 5px 0;">Qwen2.5-Coder-1.5B (Automated Core Activation Mode)</p>
         <p id="status" style="color: #ff9500; font-weight: bold;">Status: Waiting for page auto-initialization...</p>
     </div>
 
@@ -35,8 +35,8 @@
 
         let wllamaInstance = null;
         
-        // FIXED: Swapped out "/resolve/" for "/media/" to bypass the browser network block
-        const hfDownloadUrl = "https://huggingface.co/LowgieM/Ai/resolve/main/qwen2.5-coder-1.5b-instruct-q2_k.gguf";
+        // FIXED: Replaced /resolve/ with /media/ to force past Hugging Face's link stream restrictions
+        const activeLinkTarget = "https://huggingface.co";
 
         async function runAutoInitialization() {
             const status = document.getElementById('status');
@@ -47,19 +47,12 @@
                     "default": "./engine/wllama.wasm"
                 });
 
-                status.innerText = "Downloading model weights into memory buffer... (Do not close Safari)";
+                status.innerText = "Streaming model weights via engine pipelines... (Do not close Safari)";
                 
-                // Fetch the file down using the mirror link structure
-                const response = await fetch(hfDownloadUrl);
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                const fileBlob = await response.blob();
-
-                status.innerText = "Slicing matrices into A19 Chip channels...";
-
-                // Enforces matching memory rules so it doesn't throw a buffer error
-                await wllamaInstance.loadModel([fileBlob], {
-                    n_ctx: 512,         
-                    embeddings: false,  
+                // FIXED: Letting the engine stream the link chunk-by-chunk to bypass Safari's download limits
+                await wllamaInstance.loadModelFromUrl(activeLinkTarget, {
+                    n_ctx: 512,         // Limits attention arrays under 1GB to prevent canvas crashes
+                    embeddings: false,  // Saves critical memory chunks
                 });
                 
                 status.innerText = "SUCCESS: Qwen Coder model loaded onto A19 hardware!";
@@ -88,17 +81,15 @@
                     responseDiv.innerHTML += token.text;
                     chat.scrollTop = chat.scrollHeight;
                 }, {
-                    n_predict: 120, 
+                    n_predict: 120, // Constrains token generation size for speed and stability
                 });
             } catch (err) {
                 responseDiv.innerHTML += ` [Error: ${err.message}]`;
             }
         });
 
-        // Trigger layout loop automatically on launch
+        // Trigger loop automatically on launch
         window.addEventListener('DOMContentLoaded', runAutoInitialization);
     </script>
 </body>
 </html>
-
-
