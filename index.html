@@ -7,7 +7,7 @@
     <style>
         body { font-family: -apple-system, sans-serif; padding: 20px; background: #000; color: #fff; }
         .box { border: 1px solid #333; padding: 15px; border-radius: 8px; margin-bottom: 15px; background: #111; }
-        input, button, textarea { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #444; background: #222; color: #fff; box-sizing: border-box; font-size: 16px; outline: none; }
+        button, textarea { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #444; background: #222; color: #fff; box-sizing: border-box; font-size: 16px; outline: none; }
         button { background: #007aff; font-weight: bold; cursor: pointer; border: none; }
         button:disabled { background: #444; cursor: not-allowed; }
         #chat { height: 320px; overflow-y: auto; border: 1px solid #333; padding: 10px; background: #050505; white-space: pre-wrap; margin-top: 10px; }
@@ -18,10 +18,10 @@
     <h2>iPhone Hardware GGUF Pipeline</h2>
     
     <div class="box">
-        <label><strong>1. Mount Local GGUF Storage:</strong></label>
-        <input type="file" id="fileInput" accept=".gguf">
-        <button id="loadBtn">Compile Model to A19 Chip</button>
-        <p id="status" style="color: #ff9500; font-weight: bold;">Status: Waiting for file selection...</p>
+        <label><strong>Target Model Layer:</strong></label>
+        <p style="color:#aaa; font-size: 13px; margin: 5px 0;">Qwen2.5-Coder-1.5B-Instruct-Q2_K</p>
+        <button id="loadBtn">Stream Model to A19 Chip</button>
+        <p id="status" style="color: #ff9500; font-weight: bold;">Status: System Idle. Ready to pull from Hugging Face...</p>
     </div>
 
     <div class="box">
@@ -35,25 +35,28 @@
         import { Wllama } from './engine/wllama.js';
 
         let wllamaInstance = null;
+        // Your precise target Hugging Face asset link URL
+        const hfModelUrl = "https://huggingface.co/LowgieM/Ai/resolve/main/qwen2.5-coder-1.5b-instruct-q2_k.gguf";
 
         document.getElementById('loadBtn').addEventListener('click', async () => {
-            const fileInput = document.getElementById('fileInput');
             const status = document.getElementById('status');
-            if (!fileInput.files.length) return alert('Select your file first!');
-
             status.innerText = "Initializing local file structure maps...";
+            
             try {
                 wllamaInstance = new Wllama({
                     "default": "./engine/wllama.wasm"
                 });
 
-                status.innerText = "Streaming model weights into iPhone RAM layers...";
+                status.innerText = "Downloading weights directly into iPhone RAM channels... (Do not close Safari)";
                 
-                // FIXED: Using native array wrapping to feed the file block to loadModel
-                const localFileBlob = fileInput.files[0];
-                await wllamaInstance.loadModel([localFileBlob]);
+                // FIXED: Pulls directly from the Hugging Face absolute path link string
+                // AND keeps the context window tight to prevent buffer overflow limits
+                await wllamaInstance.loadModelFromUrl(hfModelUrl, {
+                    n_ctx: 512,
+                    embeddings: false,
+                });
                 
-                status.innerText = "SUCCESS: Model compiled onto iPhone hardware!";
+                status.innerText = "SUCCESS: Qwen Model compiled onto iPhone hardware!";
                 status.style.color = "#34c759";
                 document.getElementById('sendBtn').disabled = false;
             } catch (err) {
