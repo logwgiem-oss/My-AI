@@ -44,23 +44,38 @@
                     "default": "./engine/wllama.wasm"
                 });
 
-                status.innerText = "Connecting to Hugging Face API and streaming model weights... (Do not close Safari)";
+                status.innerText = "Connecting to your Hugging Face LFS Storage... (Do not close Safari)";
                 
-                // FIXED: Using the official native Hugging Face engine method to stream your specific file safely
+                // FIXED: Direct lookup using native HF parameters to bypass proxy blocks
                 await wllamaInstance.loadModelFromHF({
                     repo: "LowgieM/Ai",
                     file: "qwen2.5-coder-1.5b-instruct-q2_k.gguf"
                 }, {
-                    n_ctx: 512,        // Keeps memory context tight to stay under Safari's 1GB boundary limit
-                    embeddings: false  // Frees up extra memory overhead
+                    n_ctx: 512,        // Prevents Apple WebKit buffer crashes
+                    embeddings: false
                 });
                 
                 status.innerText = "SUCCESS: Qwen Coder model loaded onto A19 hardware!";
                 status.style.color = "#34c759";
                 document.getElementById('sendBtn').disabled = false;
             } catch (err) {
-                status.innerText = "Allocation Failed: " + err.message;
-                status.style.color = "#ff3b30";
+                // FALLBACK: If standard API path triggers a CORS drop, we fall back to a direct stream
+                try {
+                    status.innerText = "API blocked. Attempting direct file stream path...";
+                    const directLink = "https://huggingface.co/LowgieM/Ai/resolve/main/qwen2.5-coder-1.5b-instruct-q2_k.gguf";
+                    
+                    await wllamaInstance.loadModelFromUrl(directLink, {
+                        n_ctx: 512,
+                        embeddings: false
+                    });
+                    
+                    status.innerText = "SUCCESS: Qwen Coder model loaded via streaming link!";
+                    status.style.color = "#34c759";
+                    document.getElementById('sendBtn').disabled = false;
+                } catch (fallbackErr) {
+                    status.innerText = "Allocation Failed: " + fallbackErr.message;
+                    status.style.color = "#ff3b30";
+                }
             }
         }
 
