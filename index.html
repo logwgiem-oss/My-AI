@@ -49,11 +49,12 @@
 
                 status.innerText = "Streaming model weights into iPhone RAM layers... (Do not close Safari)";
                 
-                // FIXED: Passing the single selected file from the array index
-                const individualFile = fileInput.files[0];
+                // FIXED: Explicitly converts FileList container structure into an active array iterator
+                const fileArray = Array.from(fileInput.files);
                 
-                await wllamaInstance.loadModel(individualFile, {
-                    n_ctx: 512,         // Safely caps the context map window size under 1GB
+                // Feeds the file array context safely into the modern method pipeline configuration
+                await wllamaInstance.loadModel(fileArray, {
+                    n_ctx: 512,         // Restricts active memory size under 1GB to prevent Safari buffer crashes
                     embeddings: false,  
                 });
                 
@@ -83,7 +84,7 @@
                     responseDiv.innerHTML += token.text;
                     chat.scrollTop = chat.scrollHeight;
                 }, {
-                    n_predict: 120, 
+                    n_predict: 120, // Forces token generation lengths to stay secure inside browser limits
                 });
             } catch (err) {
                 responseDiv.innerHTML += ` [Error: ${err.message}]`;
@@ -92,4 +93,6 @@
     </script>
 </body>
 </html>
+
+
 
