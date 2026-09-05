@@ -19,7 +19,6 @@
     
     <div class="box">
         <label><strong>1. Mount Local GGUF Storage:</strong></label>
-        <!-- Restoring the file input so your phone can read the file directly without any internet blocks -->
         <input type="file" id="fileInput" accept=".gguf">
         <button id="loadBtn">Compile Model to A19 Chip</button>
         <p id="status" style="color: #ff9500; font-weight: bold;">Status: Waiting for file selection...</p>
@@ -50,13 +49,12 @@
 
                 status.innerText = "Streaming model weights into iPhone RAM layers... (Do not close Safari)";
                 
-                const localFileBlob = fileInput.files[0];
+                // FIXED: Passing the single selected file from the array index
+                const individualFile = fileInput.files[0];
                 
-                // FIXED: Enforcing strict memory threshold settings directly at launch
-                // to prevent the browser from hitting the 1GB WebKit buffer range crash ceiling
-                await wllamaInstance.loadModel(localFileBlob, {
-                    n_ctx: 512,         // Limits attention arrays under Safari's 1GB limit
-                    embeddings: false,  // Disables heavy background tracking layers
+                await wllamaInstance.loadModel(individualFile, {
+                    n_ctx: 512,         // Safely caps the context map window size under 1GB
+                    embeddings: false,  
                 });
                 
                 status.innerText = "SUCCESS: Model compiled onto iPhone hardware!";
@@ -81,12 +79,11 @@
             chat.appendChild(responseDiv);
 
             try {
-                // FIXED: Passing constrained token configurations into the inference routine
                 await wllamaInstance.createCompletion(prompt, (token) => {
                     responseDiv.innerHTML += token.text;
                     chat.scrollTop = chat.scrollHeight;
                 }, {
-                    n_predict: 120, // Forces token generation lengths to stay secure inside browser limits
+                    n_predict: 120, 
                 });
             } catch (err) {
                 responseDiv.innerHTML += ` [Error: ${err.message}]`;
@@ -95,3 +92,4 @@
     </script>
 </body>
 </html>
+
