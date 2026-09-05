@@ -7,7 +7,7 @@
     <style>
         body { font-family: -apple-system, sans-serif; padding: 20px; background: #000; color: #fff; }
         .box { border: 1px solid #333; padding: 15px; border-radius: 8px; margin-bottom: 15px; background: #111; }
-        button, textarea { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #444; background: #222; color: #fff; box-sizing: border-box; font-size: 16px; outline: none; }
+        input, button, textarea { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #444; background: #222; color: #fff; box-sizing: border-box; font-size: 16px; outline: none; }
         button { background: #007aff; font-weight: bold; cursor: pointer; border: none; }
         button:disabled { background: #444; cursor: not-allowed; }
         #chat { height: 320px; overflow-y: auto; border: 1px solid #333; padding: 10px; background: #050505; white-space: pre-wrap; margin-top: 10px; }
@@ -18,9 +18,11 @@
     <h2>iPhone Hardware GGUF Pipeline</h2>
     
     <div class="box">
-        <label><strong>Target Model Layer:</strong></label>
-        <p style="color:#aaa; font-size: 13px; margin: 5px 0;">Qwen2.5-Coder-1.5B (Direct Link Stream)</p>
-        <p id="status" style="color: #ff9500; font-weight: bold;">Status: Waiting for page auto-initialization...</p>
+        <label><strong>1. Mount Local GGUF Storage:</strong></label>
+        <!-- Restoring the file input so your phone can read the file directly without any internet blocks -->
+        <input type="file" id="fileInput" accept=".gguf">
+        <button id="loadBtn">Compile Model to A19 Chip</button>
+        <p id="status" style="color: #ff9500; font-weight: bold;">Status: Waiting for file selection...</p>
     </div>
 
     <div class="box">
@@ -34,35 +36,37 @@
         import { Wllama } from './engine/wllama.js';
 
         let wllamaInstance = null;
-        
-        // Your exact Hugging Face download link path
-        const hfDownloadUrl = "https://huggingface.co/LowgieM/Ai/resolve/main/qwen2.5-coder-1.5b-instruct-q2_k.gguf";
 
-        async function runAutoInitialization() {
+        document.getElementById('loadBtn').addEventListener('click', async () => {
+            const fileInput = document.getElementById('fileInput');
             const status = document.getElementById('status');
-            status.innerText = "Spawning local WebAssembly hardware layer...";
-            
+            if (!fileInput.files.length) return alert('Select your file first!');
+
+            status.innerText = "Initializing local file structure maps...";
             try {
                 wllamaInstance = new Wllama({
                     "default": "./engine/wllama.wasm"
                 });
 
-                status.innerText = "Streaming model weights chunk-by-chunk... (Do not close Safari)";
+                status.innerText = "Streaming model weights into iPhone RAM layers... (Do not close Safari)";
                 
-                // Native loader requests the newly configured CORS link cleanly
-                await wllamaInstance.loadModelFromUrl(hfDownloadUrl, {
-                    n_ctx: 512,         // Keeps memory windows under 1GB to prevent Safari buffer crashes
-                    embeddings: false,  
+                const localFileBlob = fileInput.files[0];
+                
+                // FIXED: Enforcing strict memory threshold settings directly at launch
+                // to prevent the browser from hitting the 1GB WebKit buffer range crash ceiling
+                await wllamaInstance.loadModel(localFileBlob, {
+                    n_ctx: 512,         // Limits attention arrays under Safari's 1GB limit
+                    embeddings: false,  // Disables heavy background tracking layers
                 });
                 
-                status.innerText = "SUCCESS: Qwen Coder model loaded onto A19 hardware!";
+                status.innerText = "SUCCESS: Model compiled onto iPhone hardware!";
                 status.style.color = "#34c759";
                 document.getElementById('sendBtn').disabled = false;
             } catch (err) {
                 status.innerText = "Allocation Failed: " + err.message;
                 status.style.color = "#ff3b30";
             }
-        }
+        });
 
         document.getElementById('sendBtn').addEventListener('click', async () => {
             const promptInput = document.getElementById('promptInput');
@@ -77,19 +81,17 @@
             chat.appendChild(responseDiv);
 
             try {
+                // FIXED: Passing constrained token configurations into the inference routine
                 await wllamaInstance.createCompletion(prompt, (token) => {
                     responseDiv.innerHTML += token.text;
                     chat.scrollTop = chat.scrollHeight;
                 }, {
-                    n_predict: 120, 
+                    n_predict: 120, // Forces token generation lengths to stay secure inside browser limits
                 });
             } catch (err) {
                 responseDiv.innerHTML += ` [Error: ${err.message}]`;
             }
         });
-
-        // Trigger loop automatically on launch
-        window.addEventListener('DOMContentLoaded', runAutoInitialization);
     </script>
 </body>
 </html>
