@@ -19,9 +19,8 @@
     
     <div class="box">
         <label><strong>Target Model Layer:</strong></label>
-        <p style="color:#aaa; font-size: 13px; margin: 5px 0;">Qwen2.5-Coder-1.5B-Instruct-Q2_K</p>
-        <button id="loadBtn">Stream Model to A19 Chip</button>
-        <p id="status" style="color: #ff9500; font-weight: bold;">Status: System Idle. Ready to pull from Hugging Face...</p>
+        <p style="color:#aaa; font-size: 13px; margin: 5px 0;">LowgieM/Ai -> qwen2.5-coder-1.5b-instruct-q2_k.gguf</p>
+        <p id="status" style="color: #ff9500; font-weight: bold;">Status: Waiting for model deployment initialization...</p>
     </div>
 
     <div class="box">
@@ -35,35 +34,35 @@
         import { Wllama } from './engine/wllama.js';
 
         let wllamaInstance = null;
-        // Your precise target Hugging Face asset link URL
-        const hfModelUrl = "https://huggingface.co/LowgieM/Ai/resolve/main/qwen2.5-coder-1.5b-instruct-q2_k.gguf";
 
-        document.getElementById('loadBtn').addEventListener('click', async () => {
+        async function runAutoInitialization() {
             const status = document.getElementById('status');
-            status.innerText = "Initializing local file structure maps...";
+            status.innerText = "Spawning local WebAssembly hardware layer...";
             
             try {
                 wllamaInstance = new Wllama({
                     "default": "./engine/wllama.wasm"
                 });
 
-                status.innerText = "Downloading weights directly into iPhone RAM channels... (Do not close Safari)";
+                status.innerText = "Connecting to Hugging Face API and streaming model weights... (Do not close Safari)";
                 
-                // FIXED: Pulls directly from the Hugging Face absolute path link string
-                // AND keeps the context window tight to prevent buffer overflow limits
-                await wllamaInstance.loadModelFromUrl(hfModelUrl, {
-                    n_ctx: 512,
-                    embeddings: false,
+                // FIXED: Using the official native Hugging Face engine method to stream your specific file safely
+                await wllamaInstance.loadModelFromHF({
+                    repo: "LowgieM/Ai",
+                    file: "qwen2.5-coder-1.5b-instruct-q2_k.gguf"
+                }, {
+                    n_ctx: 512,        // Keeps memory context tight to stay under Safari's 1GB boundary limit
+                    embeddings: false  // Frees up extra memory overhead
                 });
                 
-                status.innerText = "SUCCESS: Qwen Model compiled onto iPhone hardware!";
+                status.innerText = "SUCCESS: Qwen Coder model loaded onto A19 hardware!";
                 status.style.color = "#34c759";
                 document.getElementById('sendBtn').disabled = false;
             } catch (err) {
                 status.innerText = "Allocation Failed: " + err.message;
                 status.style.color = "#ff3b30";
             }
-        });
+        }
 
         document.getElementById('sendBtn').addEventListener('click', async () => {
             const promptInput = document.getElementById('promptInput');
@@ -86,8 +85,10 @@
                 responseDiv.innerHTML += ` [Error: ${err.message}]`;
             }
         });
+
+        // Trigger pipeline boot automatically on page load
+        window.addEventListener('DOMContentLoaded', runAutoInitialization);
     </script>
 </body>
 </html>
-
 
