@@ -20,19 +20,20 @@ jobs:
       - name: Setup Node.js Environment
         uses: actions/setup-node@v4
         with:
-          node-size: 20
+          node-version: 20
 
       - name: Fetch and Package Pre-compiled Production Binaries
         run: |
           mkdir -p engine
           # Reaches out to the compiled distribution registry to pull down the complete runtime bundle
           npm pack @wllama/wllama@3.5.1
-          tar -xzf wllama-3.5.1.tgz
           
-          # Extracts every background script, worker thread, and .wasm compiler binary file needed
-          cp package/dist/index.iife.js ./engine/wllama.js
-          cp package/dist/wllama.wasm ./engine/wllama.wasmb
-          cp package/dist/wllama.worker.mjs ./engine/wllama.worker.mjs
+          # Extracts using the exact double-prefixed name shown in your log
+          tar -xzf wllama-wllama-3.5.1.tgz
+          
+          # Extracts the correct scripts and compiled binary engine layouts from the package directories
+          cp package/esm/index.js ./engine/wllama.js
+          cp package/esm/wasm/wllama.wasm ./engine/wllama.wasmb
           
           # Renames the file ext for absolute raw binary MIME type serving compatibility over GitHub Pages
           mv ./engine/wllama.wasmb ./engine/wllama.wasm
@@ -42,3 +43,4 @@ jobs:
         with:
           folder: . # Deploys your root files along with the newly injected engine directory
           branch: gh-pages # Pushes everything to the dedicated active page channel
+
