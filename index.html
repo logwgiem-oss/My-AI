@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iPhone Uncapped GGUF Loader</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; padding: 20px; background: #000; color: #fff; }
+        .box { border: 1px solid #333; padding: 15px; border-radius: 8px; margin-bottom: 15px; background: #111; }
+        input, button, textarea { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #444; background: #222; color: #fff; box-sizing: border-box; font-size: 16px; outline: none; }
+        button { background: #007aff; font-weight: bold; cursor: pointer; border: none; }
+        button:disabled { background: #444; cursor: not-allowed; }
+        #chat { height: 320px; overflow-y: auto; border: 1px solid #333; padding: 10px; background: #050505; white-space: pre-wrap; margin-top: 10px; }
+    </style>
+    <!-- Communicates directly with the automated script directory block -->
+    <script src="./engine/wllama.js"></script>
+</head>
+<body>
+
+    <h2>iPhone Hardware GGUF Pipeline</h2>
+    
+    <div class="box">
+        <label><strong>1. Mount Local GGUF Storage:</strong></label>
+        <input type="file" id="fileInput" accept=".gguf">
+        <button id="loadBtn">Compile Model to A19 Chip</button>
+        <p id="status" style="color: #ff9500; font-weight: bold;">Status: Waiting for file selection...</p>
+    </div>
+
+    <div class="box">
+        <label><strong>2. Direct Chat:</strong></label>
+        <div id="chat"></div>
+        <textarea id="promptInput" placeholder="Type prompt to send straight to chip memory..." rows="3"></textarea>
+        <button id="sendBtn" disabled>Execute Inference</button>
+    </div>
+
+    <script>
+        let wllamaInstance = null;
+
+        document.getElementById('loadBtn').addEventListener('click', async () => {
+            const fileInput = document.getElementById('fileInput');
+            const status = document.getElementById('status');
+            if (!fileInput.files.length) return alert('Select your file first!');
+
+            status.innerText = "Initializing local file structure maps...";
+            try {
+                // Pins the instantiation to the automated build outputs
+                wllamaInstance = new wllama.Wllama({
+                    "default": "./engine/wllama.wasm"
+                });
+
+                status.innerText = "Streaming model weights into iPhone RAM layers...";
+                await wllamaInstance.loadModelFromBlob(fileInput.files);
+                
+                status.innerText = "SUCCESS: Model compiled onto iPhone hardware!";
+                status.style.color = "#34c759";
+                document.getElementById('sendBtn').disabled = false;
+            } catch (err) {
+                status.innerText = "Allocation Failed: " + err.message;
+                status.style.color = "#ff3b30";
+            }
+        });
+
+        document.getElementById('sendBtn').addEventListener('click', async () => {
+            const promptInput = document.getElementById('promptInput');
+            const chat = document.getElementById('chat');
+            const prompt = promptInput.value.trim();
+            if (!prompt) return;
+
+            chat.innerHTML += `<div><b>You:</b> ${prompt}</div>`;
+            promptInput.value = '';
+            const responseDiv = document.createElement('div');
+            responseDiv.innerHTML = `<b>AI:</b> `;
+            chat.appendChild(responseDiv);
+
+            try {
+                await wllamaInstance.createCompletion(prompt, (token) => {
+                    responseDiv.innerHTML += token.text;
+                    chat.scrollTop = chat.scrollHeight;
+                });
+            } catch (err) {
+                responseDiv.innerHTML += ` [Error: ${err.message}]`;
+            }
+        });
+    </script>
+</body>
+</html>
+
