@@ -31,7 +31,6 @@
         <button id="sendBtn" disabled>Execute Inference</button>
     </div>
 
-    <!-- FIXED: Changed script type to "module" to correctly catch the ESM exports without variable errors -->
     <script type="module">
         import { Wllama } from './engine/wllama.js';
 
@@ -44,13 +43,15 @@
 
             status.innerText = "Initializing local file structure maps...";
             try {
-                // Safely initializes using the natively imported constructor module
                 wllamaInstance = new Wllama({
                     "default": "./engine/wllama.wasm"
                 });
 
                 status.innerText = "Streaming model weights into iPhone RAM layers...";
-                await wllamaInstance.loadModelFromBlob(fileInput.files);
+                
+                // FIXED: Using native array wrapping to feed the file block to loadModel
+                const localFileBlob = fileInput.files[0];
+                await wllamaInstance.loadModel([localFileBlob]);
                 
                 status.innerText = "SUCCESS: Model compiled onto iPhone hardware!";
                 status.style.color = "#34c759";
