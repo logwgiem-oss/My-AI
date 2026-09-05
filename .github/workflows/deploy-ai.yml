@@ -1,0 +1,39 @@
+name: Compile and Deploy iPhone AI Engine
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # This adds a manual "Run Workflow" play button to your GitHub dashboard
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code Base
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Fetch and Package Pre-compiled Production Binaries
+        run: |
+          mkdir -p engine
+          npm pack @wllama/wllama@3.5.1
+          tar -xzf wllama-wllama-3.5.1.tgz
+          cp package/esm/index.js ./engine/wllama.js
+          cp package/esm/wasm/wllama.wasm ./engine/wllama.wasmb
+          mv ./engine/wllama.wasmb ./engine/wllama.wasm
+
+      - name: Deploy Complete Node straight to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: .
+          branch: gh-pages
